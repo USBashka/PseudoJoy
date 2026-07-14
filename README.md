@@ -1,10 +1,11 @@
-<div align="center">
-  <img src="assets/PseudoJoy.png" width="112" height="112" alt="Иконка PseudoJoy">
-  <h1>PseudoJoy</h1>
-  <p>Нативный мост от клавиатуры и физического стика к экранному джойстику.</p>
-</div>
+<img src="assets/PseudoJoy.png" width="64" height="64" align="left" alt="Иконка PseudoJoy">
 
-![Интерфейс PseudoJoy](docs/PseudoJoy-window.png)
+# PseudoJoy
+<img src="https://img.shields.io/badge/Made_with-GPT--5.6_Sol-412991?style=flat" alt="Made with GPT-5.6 Sol">
+<p>Нативный мост от клавиатуры и физического стика к экранному джойстику.</p>
+
+![Интерфейс PseudoJoy](https://github.com/user-attachments/assets/c4a90c73-7a5e-4553-a971-a98415c4ea30)
+
 
 PseudoJoy преобразует `WASD`, стрелки или левый стик XInput-геймпада в жест мышью для экранного джойстика. Правый стик работает как обычное управление курсором, а кнопки `A` и `RB` геймпада — как левая кнопка мыши. При первом отклонении игрового направления программа запоминает положение курсора, зажимает левую кнопку и перемещает указатель. Когда ввод возвращается в нейтраль, курсор сначала возвращается в исходную точку, затем кнопка отпускается.
 
@@ -30,7 +31,7 @@ PseudoJoy преобразует `WASD`, стрелки или левый сти
 
 ## Быстрый старт
 
-1. Скачайте `PseudoJoy.exe` со страницы [Releases](https://github.com/USBashka/PseudoJoy/releases) или соберите приложение самостоятельно.
+1. Скачайте архив с `PseudoJoy.exe` со страницы [Releases](https://github.com/USBashka/PseudoJoy/releases) или соберите приложение самостоятельно.
 2. Запустите PseudoJoy.
 3. Поместите курсор точно в центр экранного джойстика нужного приложения.
 4. Нажмите `F9` или кнопку «Запустить».
