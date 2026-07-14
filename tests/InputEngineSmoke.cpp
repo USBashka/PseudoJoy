@@ -23,6 +23,20 @@ bool CheckCursor(const wchar_t* step, const POINT expected) {
     }
     return true;
 }
+
+bool WaitForCursor(const wchar_t* step, const POINT expected) {
+    using namespace std::chrono_literals;
+    for (int attempt = 0; attempt < 30; ++attempt) {
+        POINT actual{};
+        GetCursorPos(&actual);
+        if (Near(actual, expected)) {
+            return true;
+        }
+        std::this_thread::sleep_for(10ms);
+    }
+    return CheckCursor(step, expected);
+}
+
 }  // namespace
 
 int wmain() {
@@ -50,29 +64,33 @@ int wmain() {
     bool success = true;
     {
         InputEngine engine;
-        engine.SetRadius(100);
+        engine.SetRadius(32);
+        engine.SetPressDelayMilliseconds(40);
         engine.Start();
         engine.SetCapturing(true);
 
         engine.SetKeyState('W', true);
-        std::this_thread::sleep_for(80ms);
-        success &= CheckCursor(L"W", POINT{anchor.x, anchor.y - 100});
+        std::this_thread::sleep_for(16ms);
+        success &= CheckCursor(L"пауза после Left Down", anchor);
+        success &= engine.Telemetry().mouseHeld;
+
+        std::this_thread::sleep_for(64ms);
+        success &= WaitForCursor(L"W", POINT{anchor.x, anchor.y - 32});
         success &= engine.Telemetry().mouseHeld;
 
         engine.SetKeyState('D', true);
-        std::this_thread::sleep_for(80ms);
-        success &= CheckCursor(L"WD", POINT{anchor.x + 71, anchor.y - 71});
+        success &= WaitForCursor(L"WD", POINT{anchor.x + 23, anchor.y - 23});
 
         engine.SetKeyState('W', false);
-        std::this_thread::sleep_for(80ms);
-        success &= CheckCursor(L"D после WD", POINT{anchor.x + 100, anchor.y});
+        success &= WaitForCursor(L"D после WD", POINT{anchor.x + 32, anchor.y});
 
         engine.SetKeyState('D', false);
-        std::this_thread::sleep_for(80ms);
-        success &= CheckCursor(L"отпускание", anchor);
+        success &= WaitForCursor(L"отпускание", anchor);
         success &= !engine.Telemetry().mouseHeld;
 
         engine.SetCapturing(false);
+        engine.SetKeyState('W', false);
+        engine.SetKeyState('D', false);
     }
 
     DestroyWindow(surface);
@@ -84,4 +102,3 @@ int wmain() {
     std::wcout << L"[OK] W, WD, смена направления и возврат курсора работают.\n";
     return 0;
 }
-

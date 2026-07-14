@@ -2,7 +2,6 @@
 
 #include <Windows.h>
 
-#include <array>
 #include <atomic>
 #include <cstdint>
 #include <thread>
@@ -35,24 +34,26 @@ public:
     void SetRadius(int pixels) noexcept;
     void SetDeadZonePercent(int percent) noexcept;
     void SetSmoothingMilliseconds(int milliseconds) noexcept;
+    void SetPressDelayMilliseconds(int milliseconds) noexcept;
     void SetBlockKeyboard(bool enabled) noexcept;
 
     [[nodiscard]] int Radius() const noexcept;
     [[nodiscard]] int DeadZonePercent() const noexcept;
     [[nodiscard]] int SmoothingMilliseconds() const noexcept;
+    [[nodiscard]] int PressDelayMilliseconds() const noexcept;
     [[nodiscard]] bool BlockKeyboard() const noexcept;
     [[nodiscard]] InputTelemetry Telemetry() const noexcept;
 
 private:
     static bool IsMovementKey(UINT virtualKey) noexcept;
-    static int KeyIndex(UINT virtualKey) noexcept;
     void Worker(std::stop_token stopToken);
 
-    std::array<std::atomic_bool, 8> keys_{};
+    std::atomic_uint32_t keyMask_{0};
     std::atomic_bool capturing_{false};
-    std::atomic_int radius_{100};
+    std::atomic_int radius_{32};
     std::atomic_int deadZonePercent_{18};
     std::atomic_int smoothingMilliseconds_{65};
+    std::atomic_int pressDelayMilliseconds_{32};
     std::atomic_bool blockKeyboard_{true};
 
     std::atomic_bool telemetryMouseHeld_{false};
@@ -63,4 +64,3 @@ private:
 
     std::jthread worker_;
 };
-

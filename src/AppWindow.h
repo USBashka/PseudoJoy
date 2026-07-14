@@ -23,6 +23,7 @@ private:
         Radius,
         DeadZone,
         Smoothing,
+        PressDelay,
     };
 
     static constexpr UINT_PTR kUiTimer = 1;
@@ -38,7 +39,7 @@ private:
     void DiscardGraphicsResources();
     void Paint();
     void Resize(UINT width, UINT height);
-    void ApplyBackdrop();
+    void ApplyWindowStyle();
     void LoadSettings();
     void SaveSettings() const;
 
@@ -68,13 +69,13 @@ private:
     D2D1_RECT_F radiusTrack_{};
     D2D1_RECT_F deadZoneTrack_{};
     D2D1_RECT_F smoothingTrack_{};
+    D2D1_RECT_F pressDelayTrack_{};
     D2D1_RECT_F blockKeyboardToggle_{};
 
     Microsoft::WRL::ComPtr<ID2D1Factory> d2dFactory_;
     Microsoft::WRL::ComPtr<IDWriteFactory> writeFactory_;
     Microsoft::WRL::ComPtr<ID2D1HwndRenderTarget> renderTarget_;
     Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> brush_;
-    Microsoft::WRL::ComPtr<IDWriteTextFormat> titleFormat_;
     Microsoft::WRL::ComPtr<IDWriteTextFormat> headingFormat_;
     Microsoft::WRL::ComPtr<IDWriteTextFormat> bodyFormat_;
     Microsoft::WRL::ComPtr<IDWriteTextFormat> smallFormat_;
@@ -82,4 +83,3 @@ private:
 
     InputEngine engine_;
 };
-

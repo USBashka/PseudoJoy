@@ -19,7 +19,7 @@ const D2D1_COLOR_F Color(const UINT32 rgb, const float alpha = 1.0f) noexcept {
     return D2D1::ColorF(rgb, alpha);
 }
 
-const D2D1_COLOR_F kBackground = Color(0x0B111C, 0.86f);
+const D2D1_COLOR_F kBackground = Color(0x0B111C);
 const D2D1_COLOR_F kCard = Color(0x172231, 0.88f);
 const D2D1_COLOR_F kCardHover = Color(0x1D2B3D, 0.92f);
 const D2D1_COLOR_F kBorder = Color(0x304156, 0.82f);
@@ -54,28 +54,6 @@ int DenormalizeValue(const float value, const int minimum, const int maximum) no
                          std::clamp(value, 0.0f, 1.0f) * static_cast<float>(maximum - minimum)));
 }
 
-enum class AccentState : int {
-    AcrylicBlurBehind = 4,
-};
-
-struct AccentPolicy {
-    AccentState state;
-    DWORD flags;
-    DWORD gradientColor;
-    DWORD animationId;
-};
-
-enum class WindowCompositionAttribute : int {
-    AccentPolicy = 19,
-};
-
-struct WindowCompositionAttributeData {
-    WindowCompositionAttribute attribute;
-    void* data;
-    SIZE_T sizeOfData;
-};
-
-using SetWindowCompositionAttributeFunction = BOOL(WINAPI*)(HWND, WindowCompositionAttributeData*);
 }  // namespace
 
 AppWindow* AppWindow::instance_ = nullptr;
@@ -134,7 +112,7 @@ bool AppWindow::Create(const HINSTANCE instance, const int showCommand) {
 
     dpi_ = GetDpiForSystem();
     RECT bounds{0, 0, MulDiv(640, static_cast<int>(dpi_), 96),
-                MulDiv(700, static_cast<int>(dpi_), 96)};
+                MulDiv(680, static_cast<int>(dpi_), 96)};
     AdjustWindowRectExForDpi(&bounds, WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX,
                              FALSE, 0, dpi_);
 
@@ -147,7 +125,7 @@ bool AppWindow::Create(const HINSTANCE instance, const int showCommand) {
     }
 
     LoadSettings();
-    ApplyBackdrop();
+    ApplyWindowStyle();
     hotkeyRegistered_ = RegisterHotKey(window_, kHotkeyId, MOD_NOREPEAT, VK_F9) != FALSE;
     keyboardHook_ = SetWindowsHookExW(WH_KEYBOARD_LL, KeyboardProcedure, module_, 0);
     engine_.Start();
@@ -178,19 +156,17 @@ LRESULT CALLBACK AppWindow::KeyboardProcedure(const int code, const WPARAM wPara
                                                const LPARAM lParam) {
     if (code == HC_ACTION && instance_ != nullptr) {
         const auto* key = reinterpret_cast<const KBDLLHOOKSTRUCT*>(lParam);
-        if ((key->flags & LLKHF_INJECTED) == 0) {
-            const bool pressed = wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN;
-            const bool released = wParam == WM_KEYUP || wParam == WM_SYSKEYUP;
-            if (pressed || released) {
-                instance_->engine_.SetKeyState(key->vkCode, pressed);
+        const bool pressed = wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN;
+        const bool released = wParam == WM_KEYUP || wParam == WM_SYSKEYUP;
+        if (pressed || released) {
+            instance_->engine_.SetKeyState(key->vkCode, pressed);
 
-                if (key->vkCode == VK_F9 && pressed && !instance_->hotkeyRegistered_) {
-                    PostMessageW(instance_->window_, kFallbackToggleMessage, 0, 0);
-                }
+            if (key->vkCode == VK_F9 && pressed && !instance_->hotkeyRegistered_) {
+                PostMessageW(instance_->window_, kFallbackToggleMessage, 0, 0);
+            }
 
-                if (instance_->engine_.ShouldBlockKey(key->vkCode)) {
-                    return 1;
-                }
+            if (instance_->engine_.ShouldBlockKey(key->vkCode)) {
+                return 1;
             }
         }
     }
@@ -223,7 +199,7 @@ LRESULT AppWindow::HandleMessage(const UINT message, const WPARAM wParam, const 
         case WM_GETMINMAXINFO: {
             auto* limits = reinterpret_cast<MINMAXINFO*>(lParam);
             limits->ptMinTrackSize.x = MulDiv(580, static_cast<int>(dpi_), 96);
-            limits->ptMinTrackSize.y = MulDiv(660, static_cast<int>(dpi_), 96);
+            limits->ptMinTrackSize.y = MulDiv(700, static_cast<int>(dpi_), 96);
             return 0;
         }
 
@@ -277,7 +253,7 @@ LRESULT AppWindow::HandleMessage(const UINT message, const WPARAM wParam, const 
             return 0;
 
         case WM_DWMCOMPOSITIONCHANGED:
-            ApplyBackdrop();
+            ApplyWindowStyle();
             return 0;
 
         case WM_CLOSE:
@@ -336,15 +312,14 @@ bool AppWindow::CreateGraphicsResources() {
             size, L"ru-RU", destination.ReleaseAndGetAddressOf());
     };
 
-    if (FAILED(createFormat(L"Segoe UI Variable Display", 25.0f, DWRITE_FONT_WEIGHT_SEMI_BOLD, titleFormat_)) ||
-        FAILED(createFormat(L"Segoe UI Variable Text", 17.0f, DWRITE_FONT_WEIGHT_SEMI_BOLD, headingFormat_)) ||
+    if (FAILED(createFormat(L"Segoe UI Variable Text", 17.0f, DWRITE_FONT_WEIGHT_SEMI_BOLD, headingFormat_)) ||
         FAILED(createFormat(L"Segoe UI Variable Text", 14.0f, DWRITE_FONT_WEIGHT_NORMAL, bodyFormat_)) ||
         FAILED(createFormat(L"Segoe UI Variable Text", 12.0f, DWRITE_FONT_WEIGHT_NORMAL, smallFormat_)) ||
         FAILED(createFormat(L"Segoe UI Variable Text", 14.0f, DWRITE_FONT_WEIGHT_SEMI_BOLD, buttonFormat_))) {
         return false;
     }
 
-    for (IDWriteTextFormat* format : {titleFormat_.Get(), headingFormat_.Get(), bodyFormat_.Get(),
+    for (IDWriteTextFormat* format : {headingFormat_.Get(), bodyFormat_.Get(),
                                      smallFormat_.Get(), buttonFormat_.Get()}) {
         format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
         format->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
@@ -374,23 +349,17 @@ void AppWindow::Paint() {
     renderTarget_->SetTransform(D2D1::Matrix3x2F::Identity());
     renderTarget_->Clear(kBackground);
 
-    DrawTextLine(L"PseudoJoy", D2D1::RectF(margin, 20.0f, width - margin, 52.0f),
-                 titleFormat_.Get(), kText);
-    titleFormat_->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
-    DrawTextLine(L"Клавиатура и стик → экранный джойстик",
-                 D2D1::RectF(margin, 53.0f, width - margin, 75.0f), smallFormat_.Get(), kMuted);
-
-    const D2D1_RECT_F statusCard = D2D1::RectF(margin, 92.0f, width - margin, 264.0f);
+    const D2D1_RECT_F statusCard = D2D1::RectF(margin, 24.0f, width - margin, 196.0f);
     DrawRoundedCard(statusCard, 18.0f, kCard, kBorder);
 
     brush_->SetColor(telemetry.capturing ? kSuccess : kMuted);
-    renderTarget_->FillEllipse(D2D1::Ellipse(D2D1::Point2F(margin + 24.0f, 122.0f), 5.0f, 5.0f), brush_.Get());
+    renderTarget_->FillEllipse(D2D1::Ellipse(D2D1::Point2F(margin + 24.0f, 54.0f), 5.0f, 5.0f), brush_.Get());
 
     headingFormat_->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
     const wchar_t* status = telemetry.capturing
                                 ? (telemetry.mouseHeld ? L"Передаём движение" : L"Захват запущен")
                                 : L"Захват остановлен";
-    DrawTextLine(status, D2D1::RectF(margin + 39.0f, 105.0f, width - 170.0f, 138.0f),
+    DrawTextLine(status, D2D1::RectF(margin + 39.0f, 37.0f, width - 170.0f, 70.0f),
                  headingFormat_.Get(), kText);
 
     std::wstring controllerText;
@@ -402,10 +371,10 @@ void AppWindow::Paint() {
         controllerText = L"Геймпад не найден · клавиатура доступна";
     }
     DrawTextLine(controllerText.c_str(),
-                 D2D1::RectF(margin + 20.0f, 139.0f, width - 160.0f, 163.0f),
+                 D2D1::RectF(margin + 20.0f, 71.0f, width - 160.0f, 95.0f),
                  smallFormat_.Get(), kMuted);
 
-    const D2D1_POINT_2F joystickCenter = D2D1::Point2F(width - 93.0f, 167.0f);
+    const D2D1_POINT_2F joystickCenter = D2D1::Point2F(width - 93.0f, 99.0f);
     brush_->SetColor(Color(0x26364A));
     renderTarget_->FillEllipse(D2D1::Ellipse(joystickCenter, 51.0f, 51.0f), brush_.Get());
     brush_->SetColor(kBorder);
@@ -418,7 +387,7 @@ void AppWindow::Paint() {
     brush_->SetColor(telemetry.mouseHeld ? kAccent : Color(0x71839A));
     renderTarget_->FillEllipse(D2D1::Ellipse(knob, 17.0f, 17.0f), brush_.Get());
 
-    actionButton_ = D2D1::RectF(margin + 20.0f, 190.0f, width - 176.0f, 238.0f);
+    actionButton_ = D2D1::RectF(margin + 20.0f, 122.0f, width - 176.0f, 170.0f);
     DrawRoundedCard(actionButton_, 12.0f,
                     telemetry.capturing ? Color(0x3A2630) : Color(0x123A50),
                     telemetry.capturing ? kDanger : kAccent);
@@ -426,39 +395,44 @@ void AppWindow::Paint() {
     DrawTextLine(telemetry.capturing ? L"Остановить     F9" : L"Запустить     F9",
                  actionButton_, buttonFormat_.Get(), telemetry.capturing ? kDanger : kText);
 
-    const float settingsBottom = std::max(637.0f, size.height - 47.0f);
-    const D2D1_RECT_F settingsCard = D2D1::RectF(margin, 282.0f, width - margin, settingsBottom);
+    const float settingsBottom = std::max(640.0f, size.height - 47.0f);
+    const D2D1_RECT_F settingsCard = D2D1::RectF(margin, 214.0f, width - margin, settingsBottom);
     DrawRoundedCard(settingsCard, 18.0f, kCard, kBorder);
     headingFormat_->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
-    DrawTextLine(L"Настройки", D2D1::RectF(margin + 20.0f, 299.0f, width - margin - 20.0f, 329.0f),
+    DrawTextLine(L"Настройки", D2D1::RectF(margin + 20.0f, 231.0f, width - margin - 20.0f, 261.0f),
                  headingFormat_.Get(), kText);
 
-    radiusTrack_ = D2D1::RectF(margin + 20.0f, 378.0f, width - margin - 20.0f, 382.0f);
+    radiusTrack_ = D2D1::RectF(margin + 20.0f, 310.0f, width - margin - 20.0f, 314.0f);
     wchar_t value[32]{};
     swprintf_s(value, L"%d пикс.", engine_.Radius());
-    DrawSlider(L"Радиус движения", value, radiusTrack_, NormalizeValue(engine_.Radius(), 40, 300));
+    DrawSlider(L"Радиус движения", value, radiusTrack_, NormalizeValue(engine_.Radius(), 16, 300));
 
-    deadZoneTrack_ = D2D1::RectF(margin + 20.0f, 449.0f, width - margin - 20.0f, 453.0f);
+    deadZoneTrack_ = D2D1::RectF(margin + 20.0f, 381.0f, width - margin - 20.0f, 385.0f);
     swprintf_s(value, L"%d %%", engine_.DeadZonePercent());
     DrawSlider(L"Мёртвая зона стика", value, deadZoneTrack_,
                NormalizeValue(engine_.DeadZonePercent(), 0, 45));
 
-    smoothingTrack_ = D2D1::RectF(margin + 20.0f, 520.0f, width - margin - 20.0f, 524.0f);
+    smoothingTrack_ = D2D1::RectF(margin + 20.0f, 452.0f, width - margin - 20.0f, 456.0f);
     swprintf_s(value, L"%d мс", engine_.SmoothingMilliseconds());
     DrawSlider(L"Сглаживание стика", value, smoothingTrack_,
                NormalizeValue(engine_.SmoothingMilliseconds(), 0, 250));
 
-    blockKeyboardToggle_ = D2D1::RectF(margin + 20.0f, 554.0f, width - margin - 20.0f, 611.0f);
+    pressDelayTrack_ = D2D1::RectF(margin + 20.0f, 523.0f, width - margin - 20.0f, 527.0f);
+    swprintf_s(value, L"%d мс", engine_.PressDelayMilliseconds());
+    DrawSlider(L"Пауза перед движением", value, pressDelayTrack_,
+               NormalizeValue(engine_.PressDelayMilliseconds(), 0, 120));
+
+    blockKeyboardToggle_ = D2D1::RectF(margin + 20.0f, 557.0f, width - margin - 20.0f, 614.0f);
     DrawRoundedCard(blockKeyboardToggle_, 12.0f, kCardHover, Color(0x35475D));
     bodyFormat_->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
     DrawTextLine(L"Блокировать исходные клавиши",
-                 D2D1::RectF(blockKeyboardToggle_.left + 15.0f, blockKeyboardToggle_.top,
-                             blockKeyboardToggle_.right - 70.0f, blockKeyboardToggle_.bottom),
+                 D2D1::RectF(blockKeyboardToggle_.left + 15.0f, blockKeyboardToggle_.top + 6.0f,
+                             blockKeyboardToggle_.right - 70.0f, blockKeyboardToggle_.top + 29.0f),
                  bodyFormat_.Get(), kText);
     smallFormat_->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
     DrawTextLine(L"WASD и стрелки не попадут в активное приложение",
-                 D2D1::RectF(blockKeyboardToggle_.left + 15.0f, blockKeyboardToggle_.top + 25.0f,
-                             blockKeyboardToggle_.right - 70.0f, blockKeyboardToggle_.bottom + 7.0f),
+                 D2D1::RectF(blockKeyboardToggle_.left + 15.0f, blockKeyboardToggle_.top + 27.0f,
+                             blockKeyboardToggle_.right - 70.0f, blockKeyboardToggle_.top + 50.0f),
                  smallFormat_.Get(), kMuted);
 
     const D2D1_RECT_F toggle = D2D1::RectF(blockKeyboardToggle_.right - 57.0f,
@@ -474,8 +448,8 @@ void AppWindow::Paint() {
 
     smallFormat_->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
     const wchar_t* footer = hotkeyRegistered_
-                                ? L"WASD · стрелки · левый стик XInput · глобальная клавиша F9"
-                                : L"WASD · стрелки · левый стик XInput · F9 занята другим приложением";
+                                ? L"WASD/стрелки · L-стик: джойстик · R-стик: курсор · A/RB: клик · F9"
+                                : L"L-стик: джойстик · R-стик: курсор · A/RB: клик · F9 занята";
     DrawTextLine(footer, D2D1::RectF(margin, size.height - 35.0f, width - margin, size.height - 12.0f),
                  smallFormat_.Get(), hotkeyRegistered_ ? kMuted : kDanger);
 
@@ -492,7 +466,7 @@ void AppWindow::Resize(const UINT width, const UINT height) {
     }
 }
 
-void AppWindow::ApplyBackdrop() {
+void AppWindow::ApplyWindowStyle() {
     if (window_ == nullptr) {
         return;
     }
@@ -504,30 +478,22 @@ void AppWindow::ApplyBackdrop() {
     const int cornerPreference = 2;  // DWMWCP_ROUND
     DwmSetWindowAttribute(window_, 33, &cornerPreference, sizeof(cornerPreference));
 
-    const int backdropType = 3;  // DWMSBT_TRANSIENTWINDOW: Acrylic
-    const HRESULT backdropResult =
-        DwmSetWindowAttribute(window_, 38, &backdropType, sizeof(backdropType));
+    const COLORREF captionColor = RGB(0x0B, 0x11, 0x1C);
+    const COLORREF captionTextColor = RGB(0xF4, 0xF7, 0xFC);
+    const COLORREF borderColor = RGB(0x30, 0x41, 0x56);
+    DwmSetWindowAttribute(window_, 35, &captionColor, sizeof(captionColor));
+    DwmSetWindowAttribute(window_, 36, &captionTextColor, sizeof(captionTextColor));
+    DwmSetWindowAttribute(window_, 34, &borderColor, sizeof(borderColor));
 
-    const MARGINS margins{-1, -1, -1, -1};
-    DwmExtendFrameIntoClientArea(window_, &margins);
-
-    if (FAILED(backdropResult)) {
-        const HMODULE user32 = GetModuleHandleW(L"user32.dll");
-        const auto setComposition = reinterpret_cast<SetWindowCompositionAttributeFunction>(
-            GetProcAddress(user32, "SetWindowCompositionAttribute"));
-        if (setComposition != nullptr) {
-            AccentPolicy policy{AccentState::AcrylicBlurBehind, 2, 0xD51C110B, 0};
-            WindowCompositionAttributeData data{
-                WindowCompositionAttribute::AccentPolicy, &policy, sizeof(policy)};
-            setComposition(window_, &data);
-        }
-    }
+    const int backdropType = 1;  // DWMSBT_NONE
+    DwmSetWindowAttribute(window_, 38, &backdropType, sizeof(backdropType));
 }
 
 void AppWindow::LoadSettings() {
-    engine_.SetRadius(static_cast<int>(ReadDword(L"Radius", 100)));
+    engine_.SetRadius(static_cast<int>(ReadDword(L"Radius", 32)));
     engine_.SetDeadZonePercent(static_cast<int>(ReadDword(L"DeadZone", 18)));
     engine_.SetSmoothingMilliseconds(static_cast<int>(ReadDword(L"Smoothing", 65)));
+    engine_.SetPressDelayMilliseconds(static_cast<int>(ReadDword(L"PressDelay", 32)));
     engine_.SetBlockKeyboard(ReadDword(L"BlockKeyboard", 1) != 0);
 }
 
@@ -538,6 +504,7 @@ void AppWindow::SaveSettings() const {
         WriteDword(key, L"Radius", static_cast<DWORD>(engine_.Radius()));
         WriteDword(key, L"DeadZone", static_cast<DWORD>(engine_.DeadZonePercent()));
         WriteDword(key, L"Smoothing", static_cast<DWORD>(engine_.SmoothingMilliseconds()));
+        WriteDword(key, L"PressDelay", static_cast<DWORD>(engine_.PressDelayMilliseconds()));
         WriteDword(key, L"BlockKeyboard", engine_.BlockKeyboard() ? 1U : 0U);
         RegCloseKey(key);
     }
@@ -554,19 +521,23 @@ void AppWindow::UpdateSlider(const DragTarget target, const float x) {
         case DragTarget::Radius: track = &radiusTrack_; break;
         case DragTarget::DeadZone: track = &deadZoneTrack_; break;
         case DragTarget::Smoothing: track = &smoothingTrack_; break;
+        case DragTarget::PressDelay: track = &pressDelayTrack_; break;
         case DragTarget::None: return;
     }
 
     const float normalized = (x - track->left) / (track->right - track->left);
     switch (target) {
         case DragTarget::Radius:
-            engine_.SetRadius(DenormalizeValue(normalized, 40, 300));
+            engine_.SetRadius(DenormalizeValue(normalized, 16, 300));
             break;
         case DragTarget::DeadZone:
             engine_.SetDeadZonePercent(DenormalizeValue(normalized, 0, 45));
             break;
         case DragTarget::Smoothing:
             engine_.SetSmoothingMilliseconds(DenormalizeValue(normalized, 0, 250));
+            break;
+        case DragTarget::PressDelay:
+            engine_.SetPressDelayMilliseconds(DenormalizeValue(normalized, 0, 120));
             break;
         case DragTarget::None:
             break;
@@ -582,6 +553,7 @@ AppWindow::DragTarget AppWindow::HitSlider(const float x, const float y) const n
     if (hit(radiusTrack_)) return DragTarget::Radius;
     if (hit(deadZoneTrack_)) return DragTarget::DeadZone;
     if (hit(smoothingTrack_)) return DragTarget::Smoothing;
+    if (hit(pressDelayTrack_)) return DragTarget::PressDelay;
     return DragTarget::None;
 }
 
