@@ -1,0 +1,37 @@
+#include "resource.h"
+#include <winver.h>
+
+IDI_APP_ICON ICON "../assets/PseudoJoy.ico"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,0,0
+ PRODUCTVERSION 1,0,0,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS VS_FF_DEBUG
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS VOS_NT_WINDOWS32
+ FILETYPE VFT_APP
+ FILESUBTYPE VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "041904B0"
+        BEGIN
+            VALUE "CompanyName", "PseudoJoy\0"
+            VALUE "FileDescription", "Нативный мост ввода в экранный джойстик\0"
+            VALUE "FileVersion", "1.0.0\0"
+            VALUE "InternalName", "PseudoJoy.exe\0"
+            VALUE "OriginalFilename", "PseudoJoy.exe\0"
+            VALUE "ProductName", "PseudoJoy\0"
+            VALUE "ProductVersion", "1.0.0\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0419, 1200
+    END
+END
+
