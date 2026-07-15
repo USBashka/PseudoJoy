@@ -1,7 +1,7 @@
 <img src="assets/PseudoJoy.png" width="64" height="64" align="left" alt="Иконка PseudoJoy">
 
 # PseudoJoy
-<img src="https://img.shields.io/badge/Made_with-GPT--5.6_Sol-412991?style=flat" alt="Made with GPT-5.6 Sol">
+<img src="https://img.shields.io/badge/Made_with-GPT--5.6_Sol-412991?style=flat" alt="Made with GPT-5.6 Sol"> <img src="https://img.shields.io/badge/C%2B%2B-00599C?logo=cplusplus&logoColor=white" alt="C++"> ![Win32](https://img.shields.io/badge/Win32-0078D6?style=flat&logo=windows&logoColor=white)
 <p>Нативный мост от клавиатуры и физического стика к экранному джойстику.</p>
 
 ![Интерфейс PseudoJoy](https://github.com/user-attachments/assets/c4a90c73-7a5e-4553-a971-a98415c4ea30)
